@@ -17,7 +17,8 @@ private:
 	USphereComponent* _SphereComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Tower Component", meta = (AllowPrivateAccess="true"))
 	UStaticMeshComponent* _MeshComponent;
-	
+	class APlayerAvatar* _Target;
+	UClass* _FireballClass;
 public:	
 	// Sets default values for this actor's properties
 	ADefenseTower();
@@ -53,7 +54,13 @@ public:
 	 bool IsDestroyed();
 	UFUNCTION(BlueprintPure,Category="Pangaea|Defense Tower")
 	 bool CanFire();
+	UFUNCTION()	//	どの当たり判定が発火、対象Actor、他のアクターの当たり判定、他のアクターの体のインデックス
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent,AActor* OtherActor,UPrimitiveComponent* OtherComponent,int32 OtherBodyIndex,bool bFromSweep,const FHitResult& SweepResult);
+	UFUNCTION()
+	void OnEndOverlap(UPrimitiveComponent* OverlappedComponent,AActor* OtherActor,UPrimitiveComponent* OtherComponent,int32 OtherBodyIndex);
+	UFUNCTION(Blueprintcallable)
+	void OnMeshBeginOverlap(AActor* OtherActor);
 	void Fire();
 	void Hit(int damage);
-
+	
 };

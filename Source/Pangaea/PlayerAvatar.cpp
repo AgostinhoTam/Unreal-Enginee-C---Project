@@ -48,7 +48,7 @@ APlayerAvatar::APlayerAvatar()
 void APlayerAvatar::BeginPlay()
 {
 	Super::BeginPlay();
-
+	_HealthPoints = HealthPoints;
 }
 
 void APlayerAvatar::DieProcess()
@@ -104,9 +104,30 @@ bool APlayerAvatar::CanAttack()
 	return (_AttackCountingDown <= 0.0f && animInstance->_State == EPlayerState::Locomotion);
 }
 
+bool APlayerAvatar::IsAttacking()
+{
+	UPlayerAvataAnimInstance* animInstance = Cast<UPlayerAvataAnimInstance>(GetMesh()->GetAnimInstance());
+	if (animInstance == nullptr)
+	{
+		UE_LOG(LogTemp,Warning,TEXT("PlayerAvatar Instance nullptr"));
+		return false;
+	}
+	return (animInstance->_State == EPlayerState::Attack);
+}
+
 void APlayerAvatar::Attack()
 {
 	//	タイマーリセット
 	_AttackCountingDown = AttackInterval;
+}
+
+void APlayerAvatar::Hit(int damage)
+{
+	_HealthPoints -= damage;
+	UE_LOG(LogTemp,Display,TEXT("HealthPoints%d"),_HealthPoints);
+	
+	if (_HealthPoints <= 0.0f)
+	{
+	}
 }
 

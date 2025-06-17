@@ -28,7 +28,8 @@ AEnemy::AEnemy()
 	AIPerceptionComponent->ConfigureSense(*SightConfig);
 	AIPerceptionComponent->SetDominantSense(UAISense_Sight::StaticClass());
 	//	武器読み込み
-	_WeaponAssetId = FPrimaryAssetId("Weapon","DA_Hammer");
+	static ConstructorHelpers::FObjectFinder<UBlueprint> blueprint_finder(TEXT("Blueprint'/Game/TopDown/Blueprints/BP_Hammer.BP_Hammer'"));
+	_WeaponClass = (UClass*)blueprint_finder.Object->GeneratedClass;
 }
 
 // Called when the game starts or when spawned
@@ -40,14 +41,10 @@ void AEnemy::BeginPlay()
 	//	イベントバインド
 	AIPerceptionComponent->OnTargetPerceptionUpdated.AddDynamic(this, &AEnemy::OnPerceptionUpdate);
 
-	//	武器は有効なら
-	if (_WeaponAssetId.IsValid())
-	{
-		UE_LOG(LogTemp,Warning,TEXT("weapon ID is valid %s"),*_WeaponAssetId.ToString());
-	
-		UAssetManager& am = UAssetManager::Get();
-		am.LoadPrimaryAsset(_WeaponAssetId,{FName("Weapon")},FStreamableDelegate::CreateUObject(this,&AEnemy::HandleWeaponData));
-	}
+	//	武器生成&ソケットに設置
+	_Weapon = Cast<AWeapon>(GetWorld()->SpawnActor(_WeaponClass));
+	_Weapon->Holder = this;
+	_Weapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetIncludingScale,FName("hand_rSocket"));
 }
 
 // Called every frame
@@ -174,25 +171,5 @@ void AEnemy::OnPerceptionUpdate(AActor* Actor, FAIStimulus Stimulus)
 
 void AEnemy::HandleWeaponData()
 {
-	UAssetManager& am = UAssetManager::Get();
-	const UWeaponData* data = Cast<UWeaponData>(am.GetPrimaryAssetObject(_WeaponAssetId));
-	if (data == nullptr)
-	{
-		UE_LOG(LogTemp,Error,TEXT("Enemy's Weapon Data not found"));
-		return;
-	}
-
-	TSubclassOf<AWeapon> weaponClass = data->WeaponClass.LoadSynchronous();
-	if (!weaponClass)
-	{
-		UE_LOG(LogTemp,Error,TEXT("Enemy's Weapon Class failed to load"));
-		return;
-	}
-	UE_LOG(LogTemp,Warning,TEXT("Weapon Loaded"));
-	_Weapon = GetWorld()->SpawnActor<AWeapon>(weaponClass);
-	if (_Weapon)
-	{
-		_Weapon->AttachToComponent(GetMesh(),FAttachmentTransformRules::SnapToTargetIncludingScale,FName("hand_rSocket"));
-		_Weapon->Holder = this;
-	}
+	
 }

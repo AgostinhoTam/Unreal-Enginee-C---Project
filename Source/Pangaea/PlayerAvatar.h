@@ -62,6 +62,8 @@ public:
 	bool IsKilled();
 	UFUNCTION(BlueprintCallable, Category = "Pangaea | PlayerCharacter")
 	bool CanAttack();
+	UFUNCTION(BlueprintCallable, Category = "Pangaea | PlayerCharacter")
+	bool IsAttacking();
 	void Attack();
 	void Hit(int damage);
 	void DieProcess();

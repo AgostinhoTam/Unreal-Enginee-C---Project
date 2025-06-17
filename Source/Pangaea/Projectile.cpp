@@ -3,6 +3,8 @@
 
 #include "Projectile.h"
 
+#include "PlayerAvatar.h"
+
 // Sets default values
 AProjectile::AProjectile()
 {
@@ -21,13 +23,44 @@ AProjectile::AProjectile()
 void AProjectile::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	_LifeCountingDown = Lifespan;
 }
 
 // Called every frame
 void AProjectile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	//	弾存続しているなら
+	if (_LifeCountingDown > 0.0f)
+	{
+		//	移動処理
+		FVector currentLocation = GetActorLocation();
+		FVector vel = GetActorRotation().RotateVector(FVector::ForwardVector*Speed*DeltaTime);
+		FVector nextLocation = currentLocation + vel;
+		SetActorLocation(nextLocation);
+		//	当たり判定（移動が早い時でも対応できるように）
+		FHitResult hitResult;
+		FCollisionObjectQueryParams objCollisionParams;
+		objCollisionParams.AddObjectTypesToQuery(ECollisionChannel::ECC_Pawn);
+		if (GetWorld()->LineTraceSingleByObjectType(hitResult,currentLocation,nextLocation,objCollisionParams))
+		{
+			auto playerAvatar = Cast<APlayerAvatar>(hitResult.GetActor());
+			if (playerAvatar != nullptr)
+			{
+				playerAvatar->Hit(Damage);
+				PrimaryActorTick.bCanEverTick = false;
+				Destroy();
+			}
+		}
+		_LifeCountingDown -= DeltaTime;
+	}
+	else
+	{
+		PrimaryActorTick.bCanEverTick = false;
+		Destroy();
+	}
+
+	
 
 }
 

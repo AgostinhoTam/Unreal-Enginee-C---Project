@@ -39,10 +39,8 @@ protected:
 	APawn* _ChasedTarget = nullptr;
 
 	//	武器関連
-	UPROPERTY(EditDefaultsOnly,Category="Weapons")	//	差し替えしやすいように
-	FPrimaryAssetId _WeaponAssetId;	//	ハンマークラス保存用
-	UPROPERTY(Transient)
-	AWeapon* _Weapon;		//	武器
+	UClass* _WeaponClass;
+	AWeapon* _Weapon;
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
