@@ -131,8 +131,9 @@ void APangaeaPlayerController::OnTouchReleased()
 void APangaeaPlayerController::	OnAttackPressed()
 {
 	auto playerAvatar = Cast<APlayerAvatar>(GetPawn());
-	if (playerAvatar->CanAttack())
+	if (playerAvatar != nullptr && playerAvatar->CanAttack())
 	{
-		playerAvatar->Attack();
+		StopMovement();
+		playerAvatar->Attack_RPC();
 	}
 }

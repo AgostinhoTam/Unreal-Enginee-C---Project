@@ -2,7 +2,8 @@
 
 
 #include "Weapon.h"
-
+#include "DefenseTower.h"
+#include "PangaeaGameMode.h"
 #include "PlayerAvatar.h"
 #include "Components/MeshComponent.h"
 #include "Components/SphereComponent.h"
@@ -12,20 +13,23 @@ AWeapon::AWeapon()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
+	SetReplicateMovement(true);
+	
 	MeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComp"));
 	MeshComp->SetCollisionProfileName(TEXT("OverlapAll"));
 	MeshComp->SetGenerateOverlapEvents(true);
-	SphereComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
-	SphereComp->SetSphereRadius(100.0f);
-	SetRootComponent(SphereComp);
-	MeshComp->SetupAttachment(RootComponent);
-	OnActorBeginOverlap.AddDynamic(this, &AWeapon::OnWeaponBeginOverlap);
+	SetRootComponent(MeshComp);
 }
 
 // Called when the game starts or when spawned
 void AWeapon::BeginPlay()
 {
 	Super::BeginPlay();
+	if (HasAuthority())
+	{
+		MeshComp->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::OnBeginOverlap);
+	}
 }
 
 // Called every frame
@@ -34,7 +38,7 @@ void AWeapon::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	//	拾われていない時は回転する
-	if (Holder == nullptr)
+	if (Holder == nullptr && HasAuthority())
 	{
 		FQuat rotQuat = FQuat(FRotator(0.0f, 300.0f * DeltaTime, 0.0f));
 		AddActorLocalRotation(rotQuat);
@@ -44,47 +48,92 @@ void AWeapon::Tick(float DeltaTime)
 //	攻撃と拾う時の処理　(OverlappedActorはエンジン側がthisになるので、OtherActorは別のActor)
 void AWeapon::OnWeaponBeginOverlap(AActor* OverlappedActor, AActor* OtherActor)
 {
-	//	キャラじゃないならリターン
-	ACharacter* character = Cast<ACharacter>(OtherActor);
-	if (character == nullptr)return;
-
-	//	武器は誰にも持っていないなら
-	if (Holder == nullptr)
+	auto character = Cast<APangaeaCharacter>(OtherActor);
+	//	対象物がキャラクターの場合
+	if (character != nullptr)
 	{
-		//	プレイヤーなら
-		APlayerAvatar* PlayerAvatar = Cast<APlayerAvatar>(character);
-		if (PlayerAvatar != nullptr)
+		//	この武器は誰にも持っていないなら
+		if (Holder == nullptr)
 		{
-			Holder = PlayerAvatar;
-
-			//	プレイヤーの手に付いている武器を取得
-			TArray<AActor*> attachedActors;
-			OtherActor->GetAttachedActors(attachedActors, true);
-
-			//	付いてる武器全部外す
-			for (int i = 0; i < attachedActors.Num(); ++i)
+			//	プレイヤーなら拾う処理
+			auto playerAvatar = Cast<APlayerAvatar>(character);
+			if (playerAvatar != nullptr)
 			{
-				attachedActors[i]->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-				attachedActors[i]->SetActorRotation(FQuat::Identity);
-				if (AWeapon* weapon = Cast<AWeapon>(attachedActors[i]))
-				{
-					weapon->Holder = nullptr;
-				}
+				playerAvatar->DropWeapon();
+				playerAvatar->AttachWeapon(this);
 			}
-			//	武器をソケットにアタッチ
-			AttachToComponent(Holder->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-			                  FName("hand_rSocket"));
+		}
+		//	他のアクターへの当たり判定処理（characterは所有者じゃない時）
+		else if (character != Holder && character->CanBeDamaged() && Holder->IsAttacking() && IsWithinAttackRange(
+			0.0f, OtherActor))
+		{
+			character->Hit(Strength);
+			//	キャラクターの処理の判定
+			if (character->IsA(APlayerAvatar::StaticClass()))
+			{
+				if (GEngine)GEngine->AddOnScreenDebugMessage(-1, 1.0, FColor::Red,TEXT("Hit PlayerAvatar"));
+			}
+			else
+			{
+				if (GEngine)GEngine->AddOnScreenDebugMessage(-1, 1.0, FColor::Cyan,TEXT("Hit Enemy"));
+			}
 		}
 	}
-	//	プレイヤーが武器持っている時、攻撃の判定取る
-	else if (IsWithinAttackRange(0.0f, OtherActor))
+	else if (Holder != nullptr && Holder->IsA(APangaeaCharacter::StaticClass()) && Holder->IsAttacking())
 	{
-		//	Damage
+		auto tower = Cast<ADefenseTower>(OtherActor);
+		if (tower != nullptr && tower->CanBeDamaged() && IsWithinAttackRange(0.0f, tower))
+		{
+		if (GEngine)GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Cyan,TEXT("Hit Tower"));
+			tower->Hit(Strength);
+		}
 	}
 }
 
 bool AWeapon::IsWithinAttackRange(float AttackRange, AActor* Target)
 {
+	return (AttackRange <= 0.0f || AttackRange >= GetDistanceTo(Target));
+}
 
-	return false;
+void AWeapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComponent, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	// 対象物はキャラクターの場合
+	APangaeaCharacter* character = Cast<APangaeaCharacter>(OtherActor);
+	if (character != nullptr)
+	{
+		//	武器はまだオーナーがいない時
+		if (Holder == nullptr)
+		{
+			//	武器装着
+			APlayerAvatar* playerAvatar = Cast<APlayerAvatar>(character);
+			if (playerAvatar != nullptr)
+			{
+				playerAvatar->DropWeapon();
+				playerAvatar->AttachWeapon(this);
+			}
+		}
+		else if (character != Holder && IsWithinAttackRange(0.0f,OtherActor) && character->CanBeDamaged() && Holder->IsAttacking())	//　オーナーがいる時、かつ自分じゃない
+		{
+			character->Hit(Strength);
+			if (character->IsA(APlayerAvatar::StaticClass()))
+			{
+				if (GEngine)GEngine->AddOnScreenDebugMessage(-1, 1.0, FColor::Red,TEXT("Hit PlayerAvatar"));
+			}
+			else
+			{
+				if (GEngine)GEngine->AddOnScreenDebugMessage(-1, 1.0, FColor::Cyan,TEXT("Hit Enemy"));
+			}
+		}
+	}
+	//	キャラクター以外の場合
+	else if (Holder !=nullptr && Holder->IsA(APangaeaCharacter::StaticClass()) && Holder->IsAttacking())
+	{
+		auto tower = Cast<ADefenseTower>(OtherActor);
+		if (tower != nullptr && tower->CanBeDamaged() && IsWithinAttackRange(0.0f, tower))
+		{
+			tower->Hit(Strength);
+			if (GEngine)GEngine->AddOnScreenDebugMessage(-1,1.0f,FColor::Red,TEXT("Hit Tower"));
+		}
+	}
 }

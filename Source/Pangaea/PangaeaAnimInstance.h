@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
-#include "EnemyAnimInstance.generated.h"
+#include "PangaeaAnimInstance.generated.h"
 
 /**
  * 
  */
 UENUM(BlueprintType)
-enum class EEnemyState:uint8
+enum class ECharacterState: uint8
 {
 	Locomotion,
 	Attack,
@@ -19,17 +19,15 @@ enum class EEnemyState:uint8
 };
 
 UCLASS()
-class PANGAEA_API UEnemyAnimInstance : public UAnimInstance
+class PANGAEA_API UPangaeaAnimInstance : public UAnimInstance
 {
 	GENERATED_BODY()
-
+	
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="PangaeaAnimInstance Params")
 	float Speed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool IsAttacking;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EEnemyState State;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="PangaeaAnimInstance Params")
+	ECharacterState State;
 	UFUNCTION(BlueprintCallable)
 	void OnStateAnimationEnds();
 };

@@ -15,11 +15,12 @@ void AEnemyController::MakeAttackDecision(APawn* targetPawn)
 	{
 		//	距離計算
 		auto dist = FVector::Dist(targetPawn->GetActorLocation(), controlledCharacter->GetActorLocation());
-
 		//	攻撃範囲内と攻撃可能の場合
 		if (dist < controlledCharacter->AttackRange && controlledCharacter->CanAttack())
 		{
-			controlledCharacter->Attack();
+			//	攻撃開始したら動き止めるとクールダウン開始
+			StopMovement();
+			controlledCharacter->Attack_Broadcast_RPC();
 		}
 		else if (dist > controlledCharacter->AttackRange + 20.0f)
 		{

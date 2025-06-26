@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
+#include "PangaeaCharacter.h"
 #include "Enemy.generated.h"
 
 class AWeapon;
 
 UCLASS()
-class PANGAEA_API AEnemy : public ACharacter
+class PANGAEA_API AEnemy : public APangaeaCharacter
 {
 	GENERATED_BODY()
 
@@ -17,71 +17,42 @@ public:
 	// Sets default values for this character's properties
 	AEnemy();
 
-	//	敵ののパラメータ
-	UPROPERTY(EditAnywhere, Category = "Enemy Params")
-	int HealthPoints = 100;
-	UPROPERTY(EditAnywhere, Category = "Enemy Params")
-	float Strength = 5.0f;
-	UPROPERTY(EditAnywhere, Category = "Enemy Params")
-	float Armor = 1.0f;
-	UPROPERTY(EditAnywhere, Category = "Enemy Params")
-	float AttackRange = 200.0f;
-	UPROPERTY(EditAnywhere, Category = "Enemy Params")
-	float AttackInterval = 3.0f;
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	//	AI処理
+	UFUNCTION(BlueprintCallable, Category="Pangaea|Enemy")
+	void Chase(APawn* targetPawn);
+	UFUNCTION(BlueprintCallable, Category = " AI | SightSense")
+	float GetSightRadius() const;
+	UFUNCTION(BlueprintCallable, Category = "AI | SightSense")
+	float GetPeripheralVisionHalfAngle() const;
+	
+	//	メイン処理
+	virtual void DieProcess() override;
+
 	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	//	パラメータ
-	int _HealthPoints;
-	float _AttackCountingDown;
-	APawn* _ChasedTarget = nullptr;
+	APawn* ChasedTarget = nullptr;
 
 	//	武器関連
-	UClass* _WeaponClass;
-	AWeapon* _Weapon;
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	UFUNCTION(BlueprintPure, Category="Pangaea|Enemy", meta = (DisplayName = "Get HP"))
-	int GetHealthPoints()const;
-
-	UFUNCTION(BlueprintPure, Category="Pangaea|Enemy")
-	bool IsKilled()const;
-
-	UFUNCTION(BlueprintPure, Category="Pangaea|Enemy")
-	bool CanAttack()const;
-
-	UFUNCTION(BlueprintCallable,Category="Pangaea|Enemy")
-	void Chase(APawn* targetPawn);
-
-	UFUNCTION(BlueprintCallable,Category = " AI | SightSense")
-	float GetSightRadius()const;
-
-	UFUNCTION(BlueprintCallable,Category = "AI | SightSense")
-	float GetPeripheralVisionHalfAngle()const;
-	
-	void Attack();
-	void Hit(int damage);
-	void DieProcess();
+	UClass* WeaponClass= nullptr;
+	AWeapon* Weapon= nullptr;
 
 private:
 	//	AI関連
-	UPROPERTY(VisibleAnywhere,BlueprintReadOnly,meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UAIPerceptionComponent* AIPerceptionComponent;
 	UPROPERTY()
 	class UAISenseConfig_Sight* SightConfig;
-	
+
 	//	Perception更新
 	UFUNCTION()
 	void OnPerceptionUpdate(AActor* Actor, FAIStimulus Stimulus);
 
-	//	キャッシュ用
-	UPROPERTY(Transient)
-	class UEnemyAnimInstance* EnemyAnimInstance = nullptr;
 
-	void HandleWeaponData();
-	
 };

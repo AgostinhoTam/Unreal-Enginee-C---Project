@@ -16,19 +16,58 @@ public:
 
 	// Called every frame.
 	virtual void Tick(float DeltaSeconds) override;
+	
+	//	キャラクターの共通パラメータ
+	UPROPERTY(EditAnywhere, Category = "Character Params")
+	int MaxHealth = 500; // MaxHealth
+	UPROPERTY(EditAnywhere, Category = "Character Params")
+	float Strength = 10.0f;
+	UPROPERTY(EditAnywhere, Category = "Character Params")
+	float Armor = 3.0f;
+	UPROPERTY(EditAnywhere, Category = "Character Params")
+	float AttackRange = 200.0f;
+	UPROPERTY(EditAnywhere, Category = "Character Params")
+	float AttackInterval = 1.2f;
 
-	/** Returns TopDownCameraComponent subobject **/
-	FORCEINLINE class UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent; }
-	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	//	体力ゲージ
+	UPROPERTY(VisibleAnywhere,BlueprintReadWrite)
+	UUserWidget* HealthBarWidget;
+	
+	//	ゲッター関数
+	//	現在体力
+	UFUNCTION(BlueprintCallable, Category="Pangaea | Params", meta=(DisplayName="Get HP"))
+	FORCEINLINE float GetHealthPoints() { return CurrentHealth; }
+	//	攻撃力
+	UFUNCTION(BlueprintCallable,Category="Pangaea | Params")
+	FORCEINLINE float GetStrength() { return Strength; }
 
-private:
-	/** Top down camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* TopDownCameraComponent;
+	//	判定フラグ
+	UFUNCTION(BlueprintCallable, Category="Pangaea | Params")
+	bool IsKilled();
+	UFUNCTION(BlueprintCallable, Category="Pangaea | Params")
+	bool CanAttack();
+	
+	//	メイン処理
+	virtual void Attack();
+	virtual void Hit(int Damage);
+	virtual void DieProcess();
+	bool IsAttacking();
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void Attack_Broadcast_RPC();
 
-	/** Camera boom positioning the camera above the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* CameraBoom;
+	
+protected:
+	virtual void BeginPlay() override;
+	
+	//	ネット更新
+	UPROPERTY(ReplicatedUsing = OnHealthPointsChanged)
+	int CurrentHealth;
+	UFUNCTION()
+	void OnHealthPointsChanged();
+	
+	float AttackCountingDown = 0;
+	class UPangaeaAnimInstance* AnimInstance;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
 };
-
